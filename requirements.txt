@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+torch>=2.2
+transformers>=4.41
+huggingface_hub
+peft
+datasets
+scikit-learn
+numpy

@@ -1,0 +1,18 @@
+[Unit]
+Description=FastAPI AI Server
+After=network.target
+
+[Service]
+Type=exec
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/home/ec2-user/app-AI
+ExecStart=/home/ec2-user/app-AI/venv/bin/gunicorn app.main:app -c gunicorn.conf.py
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

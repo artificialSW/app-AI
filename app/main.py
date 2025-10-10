@@ -12,12 +12,25 @@ load_dotenv()
 
 LABELS = ["애정표현","위로","특별한 날","과거 회상","기쁜일","취미"]
 
+# 감정 카테고리별 꽃 매핑
+EMOTION_FLOWERS = {
+    "애정표현": ["동백꽃", "장미"],
+    "위로": ["아카시아꽃", "수국"],
+    "특별한 날": ["매화꽃", "튤립"],
+    "과거 회상": ["팥배꽃", "재비꽃"],
+    "기쁜일": ["벚꽃", "코스모스"],
+    "취미": ["목련", "해바라기"]
+}
+
+import random
+
 class InputPayload(BaseModel):
     text: str
 
 class OutputPayload(BaseModel):
     label: str
     confidence: float
+    flower: str
     probs: dict
 
 app = FastAPI(title="Family Mood Classifier")
@@ -106,10 +119,15 @@ async def predict(p: InputPayload):
         
         # 결과 처리
         best_idx = int(torch.tensor(probs).argmax())
+        predicted_label = LABELS[best_idx] if best_idx < len(LABELS) else "기타"
+        
+        # 예측된 감정에 따라 랜덤 꽃 선택
+        selected_flower = random.choice(EMOTION_FLOWERS.get(predicted_label, ["꽃"]))
         
         return {
-            "label": LABELS[best_idx] if best_idx < len(LABELS) else "기타",
+            "label": predicted_label,
             "confidence": float(probs[best_idx]),
+            "flower": selected_flower,
             "probs": {LABELS[i]: float(probs[i]) for i in range(min(len(LABELS), len(probs)))}
         }
         

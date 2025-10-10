@@ -49,8 +49,14 @@ def load_model():
             MODEL_PATH = os.getenv("MODEL_PATH", "output/export_model")
             HF_MODEL_NAME = "Pataegonia/korean-family-emotion-classifier"
             
-            # 로컬 모델이 없으면 HuggingFace에서 다운로드
-            if not os.path.exists(MODEL_PATH):
+            # 로컬 모델이 없거나 비어있으면 HuggingFace에서 다운로드
+            model_files_exist = False
+            if os.path.exists(MODEL_PATH):
+                # 모델 파일이 실제로 있는지 확인
+                model_files = ['model.safetensors', 'pytorch_model.bin', 'config.json']
+                model_files_exist = any(os.path.exists(os.path.join(MODEL_PATH, f)) for f in model_files)
+            
+            if not os.path.exists(MODEL_PATH) or not model_files_exist:
                 print("Model not found locally. Downloading from HuggingFace...")
                 from huggingface_hub import snapshot_download, login
                 

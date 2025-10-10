@@ -6,6 +6,7 @@
 .vscode
 stfp.json
 __pycache__
+.git
 
 # 모델 파일들 (대용량)
 outputs/export_model/

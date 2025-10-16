@@ -50,16 +50,21 @@ def load_model():
             MULTILABEL_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "outputs", "multilabel_export")
             
             if os.path.exists(MULTILABEL_MODEL_PATH):
-                print(f"Loading multilabel model from: {MULTILABEL_MODEL_PATH}")
-                tokenizer = AutoTokenizer.from_pretrained(MULTILABEL_MODEL_PATH)
-                model = AutoModelForSequenceClassification.from_pretrained(
-                    MULTILABEL_MODEL_PATH,
-                    torch_dtype=torch.float32,
-                    low_cpu_mem_usage=True
-                )
-                model.eval()
-                print("Multilabel model loaded successfully!")
-                return
+                model_files = ['model.safetensors', 'pytorch_model.bin', 'config.json']
+                model_files_exist = any(os.path.exists(os.path.join(MULTILABEL_MODEL_PATH, f)) for f in model_files)
+                if model_files_exist:
+                    print(f"Loading multilabel model from: {MULTILABEL_MODEL_PATH}")
+                    tokenizer = AutoTokenizer.from_pretrained(MULTILABEL_MODEL_PATH)
+                    model = AutoModelForSequenceClassification.from_pretrained(
+                        MULTILABEL_MODEL_PATH,
+                        torch_dtype=torch.float32,
+                        low_cpu_mem_usage=True
+                    )
+                    model.eval()
+                    print("Multilabel model loaded successfully!")
+                    return
+                else:
+                    print("Multilabel model files not found, falling back to single-label model.")
             
             # 멀티라벨 모델이 없으면 기존 단일라벨 모델 로드
             MODEL_PATH = os.getenv("MODEL_PATH", "outputs/export_model")

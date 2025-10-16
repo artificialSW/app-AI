@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from dotenv import load_dotenv
+import json
 
 # .env 파일 로드
 load_dotenv()
@@ -35,24 +36,38 @@ class OutputPayload(BaseModel):
 
 app = FastAPI(title="Family Mood Classifier")
 
-# 글로벌 변수로 모델 저장
+# 글로벌 변수로 모델 저장 (멀티라벨 모델을 메인으로 사용)
 model = None
 tokenizer = None
 
 def load_model():
-    """모델을 지연 로딩합니다."""
+    """멀티라벨 모델을 메인 모델로 로딩합니다."""
     global model, tokenizer
     
     if model is None:
         try:
-            # 환경변수에서 모델 경로 읽기
-            MODEL_PATH = os.getenv("MODEL_PATH", "output/export_model")
+            # 먼저 로컬 멀티라벨 모델을 시도
+            MULTILABEL_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "outputs", "multilabel_export")
+            
+            if os.path.exists(MULTILABEL_MODEL_PATH):
+                print(f"Loading multilabel model from: {MULTILABEL_MODEL_PATH}")
+                tokenizer = AutoTokenizer.from_pretrained(MULTILABEL_MODEL_PATH)
+                model = AutoModelForSequenceClassification.from_pretrained(
+                    MULTILABEL_MODEL_PATH,
+                    torch_dtype=torch.float32,
+                    low_cpu_mem_usage=True
+                )
+                model.eval()
+                print("Multilabel model loaded successfully!")
+                return
+            
+            # 멀티라벨 모델이 없으면 기존 단일라벨 모델 로드
+            MODEL_PATH = os.getenv("MODEL_PATH", "outputs/export_model")
             HF_MODEL_NAME = "Pataegonia/korean-family-emotion-classifier"
             
             # 로컬 모델이 없거나 비어있으면 HuggingFace에서 다운로드
             model_files_exist = False
             if os.path.exists(MODEL_PATH):
-                # 모델 파일이 실제로 있는지 확인
                 model_files = ['model.safetensors', 'pytorch_model.bin', 'config.json']
                 model_files_exist = any(os.path.exists(os.path.join(MODEL_PATH, f)) for f in model_files)
             
@@ -60,7 +75,6 @@ def load_model():
                 print("Model not found locally. Downloading from HuggingFace...")
                 from huggingface_hub import snapshot_download, login
                 
-                # HuggingFace 토큰으로 로그인 (선택적)
                 hf_token = os.getenv("HUGGINGFACE_HUB_TOKEN")
                 if hf_token and hf_token.strip():
                     try:
@@ -78,7 +92,7 @@ def load_model():
                 )
                 print("Model downloaded successfully!")
             
-            print(f"Loading model from: {MODEL_PATH}")
+            print(f"Loading single-label model from: {MODEL_PATH}")
             tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
             model = AutoModelForSequenceClassification.from_pretrained(
                 MODEL_PATH,
@@ -86,7 +100,7 @@ def load_model():
                 low_cpu_mem_usage=True
             )
             model.eval()
-            print("Model loaded successfully!")
+            print("Single-label model loaded successfully!")
             
         except Exception as e:
             print(f"Error loading model: {e}")
@@ -100,11 +114,26 @@ async def startup_event():
 @app.get("/health")
 async def health_check():
     """헬스 체크 엔드포인트"""
-    return {"status": "healthy", "model_loaded": model is not None}
+    return {
+        "status": "healthy", 
+        "model_loaded": model is not None
+    }
+
+def is_multilabel_model(model_path):
+    """모델이 멀티라벨 모델인지 확인"""
+    try:
+        config_path = os.path.join(model_path, "config.json")
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+                return config.get("problem_type") == "multi_label_classification"
+    except:
+        pass
+    return False
 
 @app.post("/predict", response_model=OutputPayload)
 async def predict(p: InputPayload):
-    """텍스트 분류 예측"""
+    """텍스트 분류 예측 (멀티라벨 모델을 사용하되 최고 확률의 단일 라벨 반환)"""
     if model is None or tokenizer is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
@@ -121,10 +150,17 @@ async def predict(p: InputPayload):
         # 예측
         with torch.no_grad():
             logits = model(**enc).logits
-            probs = F.softmax(logits, dim=-1)[0].cpu().tolist()
+            
+            # 멀티라벨 모델인지 확인하여 적절한 활성화 함수 사용
+            if hasattr(model.config, 'problem_type') and model.config.problem_type == "multi_label_classification":
+                # 멀티라벨 모델: 시그모이드 사용
+                probs = torch.sigmoid(logits)[0].cpu().tolist()
+            else:
+                # 단일라벨 모델: 소프트맥스 사용
+                probs = F.softmax(logits, dim=-1)[0].cpu().tolist()
         
-        # 결과 처리
-        best_idx = int(torch.tensor(probs).argmax())
+        # 가장 높은 확률의 라벨 선택 (단일 라벨 출력)
+        best_idx = probs.index(max(probs))
         predicted_label = LABELS[best_idx] if best_idx < len(LABELS) else "기타"
         
         # 예측된 감정에 따라 랜덤 꽃 선택
@@ -139,6 +175,8 @@ async def predict(p: InputPayload):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
+
 
 if __name__ == "__main__":
     import uvicorn

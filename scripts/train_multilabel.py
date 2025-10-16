@@ -105,7 +105,7 @@ def train_multilabel_model(
     train_file: str,
     val_file: str,
     model_name: str = "klue/bert-base",
-    output_dir: str = "./multilabel_model",
+    output_dir: str = "outputs/multilabel_model",
     max_length: int = 128,
     batch_size: int = 16,
     num_epochs: int = 5,
@@ -148,7 +148,7 @@ def train_multilabel_model(
         weight_decay=0.01,
         logging_dir=f'{output_dir}/logs',
         logging_steps=100,
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
         learning_rate=learning_rate,
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     trainer = train_multilabel_model(
         train_file=train_file,
         val_file=val_file,
-        output_dir="./multilabel_model",
+        output_dir="outputs/multilabel_model",
         num_epochs=5,
         batch_size=16
     )

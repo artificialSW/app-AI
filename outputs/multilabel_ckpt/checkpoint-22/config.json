@@ -1,0 +1,41 @@
+{
+  "architectures": [
+    "BertForSequenceClassification"
+  ],
+  "attention_probs_dropout_prob": 0.1,
+  "classifier_dropout": null,
+  "dtype": "float32",
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 768,
+  "id2label": {
+    "0": "\uc560\uc815\ud45c\ud604",
+    "1": "\uc704\ub85c",
+    "2": "\ud2b9\ubcc4\ud55c \ub0a0",
+    "3": "\uacfc\uac70 \ud68c\uc0c1",
+    "4": "\uae30\uc05c\uc77c",
+    "5": "\ucde8\ubbf8"
+  },
+  "initializer_range": 0.02,
+  "intermediate_size": 3072,
+  "label2id": {
+    "\uacfc\uac70 \ud68c\uc0c1": 3,
+    "\uae30\uc05c\uc77c": 4,
+    "\uc560\uc815\ud45c\ud604": 0,
+    "\uc704\ub85c": 1,
+    "\ucde8\ubbf8": 5,
+    "\ud2b9\ubcc4\ud55c \ub0a0": 2
+  },
+  "layer_norm_eps": 1e-12,
+  "max_position_embeddings": 512,
+  "model_type": "bert",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 12,
+  "pad_token_id": 0,
+  "position_embedding_type": "absolute",
+  "problem_type": "multi_label_classification",
+  "transformers_version": "4.57.0",
+  "type_vocab_size": 2,
+  "use_cache": true,
+  "vocab_size": 32000
+}
